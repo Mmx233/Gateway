@@ -28,5 +28,5 @@ type ApiConf struct {
 	TrimPath       func(path string) string
 	TrimPathPrefix string
 
-	Request func(req *http.Request)
+	RequestInterceptor func(c *gin.Context, req *http.Request)
 }

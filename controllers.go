@@ -76,8 +76,11 @@ func Proxy(conf *ApiConf) gin.HandlerFunc {
 			}
 		}
 
-		if conf.Request != nil {
-			conf.Request(req)
+		if conf.RequestInterceptor != nil {
+			conf.RequestInterceptor(c, req)
+			if c.IsAborted() {
+				return
+			}
 		}
 
 		res, e := conf.Client.Do(req)
