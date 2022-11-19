@@ -19,9 +19,9 @@ func Proxy(conf *ApiConf) gin.HandlerFunc {
 			conf.AllowRequest = AllowAll
 		} else if conf.MatchPathPrefix != "" {
 			conf.AllowRequest = MatchPathPrefix(conf.MatchPathPrefix)
+		} else {
+			panic("gateway match condition required")
 		}
-
-		panic("gateway match condition required")
 	}
 	if conf.ErrorHandler == nil {
 		conf.ErrorHandler = func(c *gin.Context, e error) {
