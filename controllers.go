@@ -87,9 +87,10 @@ func Proxy(conf *ApiConf) gin.HandlerFunc {
 		}
 		defer res.Body.Close()
 
-		contentType := res.Header.Get("Content-Type")
-		if contentType != "" {
-			c.Header("Content-Type", contentType)
+		for k, v := range res.Header {
+			if strings.Contains(k, "Content-") {
+				c.Header(k, v[0])
+			}
 		}
 		c.Status(res.StatusCode)
 
