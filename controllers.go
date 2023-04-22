@@ -71,7 +71,9 @@ func Proxy(conf *ApiConf) gin.HandlerFunc {
 		proxy.ErrorHandler = func(_ http.ResponseWriter, _ *http.Request, e error) {
 			conf.ErrorHandler(c, e)
 		}
+		rawDirector := proxy.Director
 		proxy.Director = func(request *http.Request) {
+			rawDirector(request)
 			if conf.RequestInterceptor != nil && !c.IsAborted() {
 				conf.RequestInterceptor(c, request)
 			}
