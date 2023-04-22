@@ -6,6 +6,8 @@ import (
 	"github.com/gorilla/websocket"
 	"io"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"strings"
 )
 
@@ -62,51 +64,24 @@ func Proxy(conf *ApiConf) gin.HandlerFunc {
 
 		//转发请求
 
-		req, e := http.NewRequest(c.Request.Method, "http://"+conf.Addr+reqPath, c.Request.Body)
+		targetUrl, e := url.Parse("http://" + conf.Addr + reqPath)
 		if e != nil {
 			conf.ErrorHandler(c, e)
 			return
 		}
-
-		req.URL.RawQuery = c.Request.URL.RawQuery
-
-		for k, v := range c.Request.Header {
-			if strings.Contains(k, "Content-") {
-				req.Header[k] = v
-			}
-		}
-
-		if conf.RequestInterceptor != nil {
-			conf.RequestInterceptor(c, req)
-			if c.IsAborted() {
-				return
-			}
-		}
-
-		res, e := conf.Client.Do(req)
-		if e != nil {
+		proxy := httputil.NewSingleHostReverseProxy(targetUrl)
+		proxy.BufferPool = &TransBuffPool{}
+		proxy.ErrorHandler = func(_ http.ResponseWriter, _ *http.Request, e error) {
 			conf.ErrorHandler(c, e)
-			return
 		}
-		defer res.Body.Close()
-
-		for k, v := range res.Header {
-			if strings.Contains(k, "Content-") {
-				c.Header(k, v[0])
+		proxy.Director = func(request *http.Request) {
+			if conf.RequestInterceptor != nil && !c.IsAborted() {
+				conf.RequestInterceptor(c, request)
 			}
 		}
-		c.Status(res.StatusCode)
-
-		buff := BuffPool.Get().([]byte)
-		_, e = io.CopyBuffer(c.Writer, res.Body, buff)
-		BuffPool.Put(buff)
-
-		if e != nil {
-			conf.ErrorHandler(c, e)
-			return
+		if !c.IsAborted() {
+			proxy.ServeHTTP(c.Writer, c.Request)
 		}
-
-		c.Abort()
 	}
 
 	if conf.Middleware != nil {

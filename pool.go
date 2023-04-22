@@ -7,3 +7,12 @@ var BuffPool = &sync.Pool{
 		return make([]byte, 32*1024)
 	},
 }
+
+type TransBuffPool struct{}
+
+func (a TransBuffPool) Get() []byte {
+	return BuffPool.Get().([]byte)
+}
+func (a TransBuffPool) Put(b []byte) {
+	BuffPool.Put(b)
+}
