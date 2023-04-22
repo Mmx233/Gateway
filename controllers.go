@@ -44,15 +44,12 @@ func Proxy(conf *ApiConf) gin.HandlerFunc {
 			return
 		}
 
-		var reqPath string
 		if conf.TrimPath != nil {
-			reqPath = conf.TrimPath(c.Request.URL.Path)
-		} else {
-			reqPath = c.Request.URL.Path
+			c.Request.URL.Path = conf.TrimPath(c.Request.URL.Path)
 		}
 
 		if c.IsWebsocket() {
-			var wsUrl = "ws://" + conf.Addr + reqPath
+			var wsUrl = "ws://" + conf.Addr + c.Request.URL.Path
 			if c.Request.URL.RawQuery != "" {
 				wsUrl += "?" + c.Request.URL.RawQuery
 			}
@@ -63,8 +60,7 @@ func Proxy(conf *ApiConf) gin.HandlerFunc {
 		defer c.Request.Body.Close()
 
 		//转发请求
-
-		targetUrl, e := url.Parse("http://" + conf.Addr + reqPath)
+		targetUrl, e := url.Parse("http://" + conf.Addr)
 		if e != nil {
 			conf.ErrorHandler(c, e)
 			return
