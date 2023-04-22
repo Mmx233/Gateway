@@ -70,6 +70,7 @@ func Proxy(conf *ApiConf) gin.HandlerFunc {
 			return
 		}
 		proxy := httputil.NewSingleHostReverseProxy(targetUrl)
+		proxy.Transport = conf.Client.Transport
 		proxy.BufferPool = &TransBuffPool{}
 		proxy.ErrorHandler = func(_ http.ResponseWriter, _ *http.Request, e error) {
 			conf.ErrorHandler(c, e)
