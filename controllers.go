@@ -5,6 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"io"
+	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -25,17 +26,28 @@ func Proxy(conf *ApiConf) gin.HandlerFunc {
 			panic("gateway match condition required")
 		}
 	}
-	if conf.ErrorHandler == nil {
-		conf.ErrorHandler = func(c *gin.Context, e error) {
-			_ = c.AbortWithError(500, e)
-		}
-	}
-	if conf.Client == nil {
-		conf.Client = http.DefaultClient
+	if conf.Transport == nil {
+		conf.Transport = http.DefaultClient.Transport
 	}
 	if conf.TrimPath == nil && conf.TrimPathPrefix != "" {
 		conf.TrimPath = func(path string) string {
 			return strings.TrimPrefix(path, conf.TrimPathPrefix)
+		}
+	}
+
+	targetUrl, e := url.Parse("http://" + conf.Addr)
+	if e != nil {
+		log.Fatalln("无法解析目标地址:", e)
+	}
+	proxyHandler := httputil.NewSingleHostReverseProxy(targetUrl)
+	proxyHandler.Transport = conf.Transport
+	proxyHandler.BufferPool = &TransBuffPool{}
+	proxyHandler.ErrorHandler = conf.ErrorHandler
+	rawDirector := proxyHandler.Director
+	proxyHandler.Director = func(request *http.Request) {
+		rawDirector(request)
+		if conf.RequestInterceptor != nil {
+			conf.RequestInterceptor(request)
 		}
 	}
 
@@ -57,30 +69,8 @@ func Proxy(conf *ApiConf) gin.HandlerFunc {
 			return
 		}
 
-		defer c.Request.Body.Close()
-
 		//转发请求
-		targetUrl, e := url.Parse("http://" + conf.Addr)
-		if e != nil {
-			conf.ErrorHandler(c, e)
-			return
-		}
-		proxy := httputil.NewSingleHostReverseProxy(targetUrl)
-		proxy.Transport = conf.Client.Transport
-		proxy.BufferPool = &TransBuffPool{}
-		proxy.ErrorHandler = func(_ http.ResponseWriter, _ *http.Request, e error) {
-			conf.ErrorHandler(c, e)
-		}
-		rawDirector := proxy.Director
-		proxy.Director = func(request *http.Request) {
-			rawDirector(request)
-			if conf.RequestInterceptor != nil && !c.IsAborted() {
-				conf.RequestInterceptor(c, request)
-			}
-		}
-		if !c.IsAborted() {
-			proxy.ServeHTTP(c.Writer, c.Request)
-		}
+		proxyHandler.ServeHTTP(c.Writer, c.Request)
 	}
 
 	if conf.Middleware != nil {
@@ -95,16 +85,16 @@ func Proxy(conf *ApiConf) gin.HandlerFunc {
 	return control
 }
 
-func proxyWs(ErrorHandler func(c *gin.Context, e error), url string, c *gin.Context) {
+func proxyWs(ErrorHandler func(http.ResponseWriter, *http.Request, error), url string, c *gin.Context) {
 	connS, _, e := websocket.DefaultDialer.Dial(url, nil)
 	if e != nil {
-		ErrorHandler(c, e)
+		ErrorHandler(c.Writer, c.Request, e)
 		return
 	}
 
 	connC, e := UpgradeWs(c)
 	if e != nil {
-		ErrorHandler(c, e)
+		ErrorHandler(c.Writer, c.Request, e)
 		return
 	}
 

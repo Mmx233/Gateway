@@ -12,8 +12,8 @@ type ApiConf struct {
 
 	// api
 
-	Client       *http.Client
-	ErrorHandler func(c *gin.Context, e error)
+	Transport    http.RoundTripper
+	ErrorHandler func(http.ResponseWriter, *http.Request, error)
 	Middleware   gin.HandlerFunc
 
 	// match
@@ -28,5 +28,5 @@ type ApiConf struct {
 	TrimPath       func(path string) string
 	TrimPathPrefix string
 
-	RequestInterceptor func(c *gin.Context, req *http.Request)
+	RequestInterceptor func(request *http.Request)
 }
