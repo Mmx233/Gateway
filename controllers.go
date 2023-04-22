@@ -5,7 +5,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"io"
-	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -37,16 +36,16 @@ func Proxy(conf *ApiConf) gin.HandlerFunc {
 
 	targetUrl, e := url.Parse("http://" + conf.Addr)
 	if e != nil {
-		log.Fatalln("无法解析目标地址:", e)
+		panic(e)
 	}
 	proxyHandler := httputil.NewSingleHostReverseProxy(targetUrl)
 	proxyHandler.Transport = conf.Transport
 	proxyHandler.BufferPool = &TransBuffPool{}
 	proxyHandler.ErrorHandler = conf.ErrorHandler
-	rawDirector := proxyHandler.Director
-	proxyHandler.Director = func(request *http.Request) {
-		rawDirector(request)
-		if conf.RequestInterceptor != nil {
+	if conf.RequestInterceptor != nil {
+		rawDirector := proxyHandler.Director
+		proxyHandler.Director = func(request *http.Request) {
+			rawDirector(request)
 			conf.RequestInterceptor(request)
 		}
 	}
