@@ -1,10 +1,7 @@
 package gateway
 
 import (
-	"github.com/Mmx233/tool"
 	"github.com/gin-gonic/gin"
-	"github.com/gorilla/websocket"
-	"io"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -59,15 +56,6 @@ func Proxy(conf *ApiConf) gin.HandlerFunc {
 			c.Request.URL.Path = conf.TrimPath(c.Request.URL.Path)
 		}
 
-		if c.IsWebsocket() {
-			var wsUrl = "ws://" + conf.Addr + c.Request.URL.Path
-			if c.Request.URL.RawQuery != "" {
-				wsUrl += "?" + c.Request.URL.RawQuery
-			}
-			proxyWs(conf.ErrorHandler, wsUrl, c)
-			return
-		}
-
 		//转发请求
 		proxyHandler.ServeHTTP(c.Writer, c.Request)
 	}
@@ -82,53 +70,4 @@ func Proxy(conf *ApiConf) gin.HandlerFunc {
 	}
 
 	return control
-}
-
-func proxyWs(ErrorHandler func(http.ResponseWriter, *http.Request, error), url string, c *gin.Context) {
-	connS, _, e := websocket.DefaultDialer.Dial(url, nil)
-	if e != nil {
-		ErrorHandler(c.Writer, c.Request, e)
-		return
-	}
-
-	connC, e := UpgradeWs(c)
-	if e != nil {
-		ErrorHandler(c.Writer, c.Request, e)
-		return
-	}
-
-	var closeAll = func() {
-		_ = connC.Close()
-		_ = connS.Close()
-	}
-
-	var transfer = func(from, to *websocket.Conn) {
-		defer tool.Recover()
-		for {
-			t, i, e := from.NextReader()
-			if e != nil {
-				closeAll()
-				return
-			}
-
-			writer, e := to.NextWriter(t)
-			if e != nil {
-				closeAll()
-				return
-			}
-
-			buf := BuffPool.Get().([]byte)
-			_, e = io.CopyBuffer(writer, i, buf)
-			BuffPool.Put(buf)
-			if e != nil {
-				closeAll()
-				return
-			}
-		}
-	}
-
-	go transfer(connS, connC)
-	go transfer(connC, connS)
-
-	c.AbortWithStatus(101)
 }
