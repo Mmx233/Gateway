@@ -3,6 +3,7 @@ package gateway
 import (
 	"github.com/gin-gonic/gin"
 	"net/http"
+	"net/http/httputil"
 )
 
 type ApiConf struct {
@@ -13,6 +14,7 @@ type ApiConf struct {
 	// api
 
 	Transport    http.RoundTripper
+	BufferPool   httputil.BufferPool
 	ErrorHandler func(http.ResponseWriter, *http.Request, error)
 	Middleware   gin.HandlerFunc
 

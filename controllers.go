@@ -37,7 +37,10 @@ func Proxy(conf *ApiConf) gin.HandlerFunc {
 	}
 	proxyHandler := httputil.NewSingleHostReverseProxy(targetUrl)
 	proxyHandler.Transport = conf.Transport
-	proxyHandler.BufferPool = &TransBuffPool{}
+	if conf.BufferPool == nil {
+		conf.BufferPool = &TransBuffPool{}
+	}
+	proxyHandler.BufferPool = conf.BufferPool
 	proxyHandler.ErrorHandler = conf.ErrorHandler
 	if conf.RequestInterceptor != nil {
 		rawDirector := proxyHandler.Director
