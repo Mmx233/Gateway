@@ -16,7 +16,6 @@ type ApiConf struct {
 	Transport    http.RoundTripper
 	BufferPool   httputil.BufferPool
 	ErrorHandler func(http.ResponseWriter, *http.Request, error)
-	Middleware   gin.HandlerFunc
 
 	// match
 	// Adding multiple only the first one takes effect, same below

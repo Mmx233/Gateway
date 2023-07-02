@@ -63,14 +63,5 @@ func Proxy(conf *ApiConf) gin.HandlerFunc {
 		proxyHandler.ServeHTTP(c.Writer, c.Request)
 	}
 
-	if conf.Middleware != nil {
-		return func(c *gin.Context) {
-			conf.Middleware(c)
-			if !c.IsAborted() {
-				control(c)
-			}
-		}
-	}
-
 	return control
 }
